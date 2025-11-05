@@ -25,7 +25,7 @@ export interface CreateModelConfigDto {
   apiEndpoint: string;
   apiKey: string;
   modelId: string;
-  systemPrompt: string;
+  systemPrompt?: string;
   temperature?: number;
   maxTokens?: number;
   topP?: number;

@@ -82,6 +82,60 @@ export class TranslationService {
     }
   }
 
+  // Public thin wrappers to enable progressive execution
+  async runStage1(
+    sourceText: string,
+    knowledgeContext: string[],
+    modelIds?: string[]
+  ): Promise<TranslationStageResult[]> {
+    return this.executeStage1(sourceText, knowledgeContext, modelIds);
+  }
+
+  async runStage2(
+    sourceText: string,
+    stage1Results: TranslationStageResult[],
+    knowledgeContext: string[],
+    modelIds?: string[]
+  ): Promise<ReviewResult[]> {
+    return this.executeStage2(sourceText, stage1Results, knowledgeContext, modelIds);
+  }
+
+  async runStage3(
+    sourceText: string,
+    stage1Results: TranslationStageResult[],
+    stage2Results: ReviewResult[],
+    knowledgeContext: string[],
+    modelIds?: string[]
+  ): Promise<TranslationStageResult[]> {
+    return this.executeStage3(sourceText, stage1Results, stage2Results, knowledgeContext, modelIds);
+  }
+
+  finalizeAndSave(
+    sourceText: string,
+    stage1Results: TranslationStageResult[],
+    stage2Results: ReviewResult[],
+    stage3Results: TranslationStageResult[]
+  ): TranslationResponse {
+    const translationId = uuidv4();
+    const finalTranslation = stage3Results[0]?.output || stage1Results[0]?.output || '';
+    const totalDuration = [...stage1Results, ...stage2Results, ...stage3Results]
+      .reduce((sum, r) => sum + (r.duration || 0), 0);
+
+    const response: TranslationResponse = {
+      id: translationId,
+      sourceText,
+      stage1Results,
+      stage2Results,
+      stage3Results,
+      finalTranslation,
+      totalDuration,
+      createdAt: new Date().toISOString()
+    };
+
+    this.saveToHistory(response);
+    return response;
+  }
+
   /**
    * Stage 1: Multiple models translate in parallel
    */

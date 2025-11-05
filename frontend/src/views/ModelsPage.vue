@@ -62,17 +62,17 @@
                 <span class="text-gray-500">模型ID:</span>
                 <span class="ml-2 text-gray-800">{{ model.modelId }}</span>
               </div>
-              <div>
+              <div v-if="model.stage !== 'embedding'">
                 <span class="text-gray-500">温度:</span>
                 <span class="ml-2 text-gray-800">{{ model.temperature ?? '默认' }}</span>
               </div>
-              <div>
+              <div v-if="model.stage !== 'embedding'">
                 <span class="text-gray-500">最大Token:</span>
                 <span class="ml-2 text-gray-800">{{ model.maxTokens ?? '默认' }}</span>
               </div>
             </div>
 
-            <div class="mt-3">
+            <div class="mt-3" v-if="model.stage !== 'embedding' && model.systemPrompt">
               <span class="text-gray-500 text-sm">系统提示词:</span>
               <p class="text-gray-800 text-sm mt-1 line-clamp-2">{{ model.systemPrompt }}</p>
             </div>
@@ -179,7 +179,7 @@
             />
           </div>
 
-          <div>
+          <div v-if="formData.stage !== 'embedding'">
             <label class="block text-sm font-medium mb-2">系统提示词</label>
             <textarea
               v-model="formData.systemPrompt"
@@ -189,7 +189,7 @@
             ></textarea>
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-2 gap-4" v-if="formData.stage !== 'embedding'">
             <div>
               <label class="block text-sm font-medium mb-2">温度 (可选)</label>
               <input
@@ -203,7 +203,7 @@
               />
             </div>
             <div>
-              <label class="block text-sm font-medium mb-2">最大Token (可选)</label>
+              <label class="block text.sm font-medium mb-2">最大Token (可选)</label>
               <input
                 v-model.number="formData.maxTokens"
                 type="number"
@@ -273,11 +273,15 @@ const stageLabel = computed(() => {
 });
 
 const isFormValid = computed(() => {
-  return formData.value.name.trim() !== '' &&
+  const baseValid = formData.value.name.trim() !== '' &&
     formData.value.apiEndpoint.trim() !== '' &&
     formData.value.apiKey.trim() !== '' &&
-    formData.value.modelId.trim() !== '' &&
-    formData.value.systemPrompt.trim() !== '';
+    formData.value.modelId.trim() !== '';
+
+  if (formData.value.stage === 'embedding') {
+    return baseValid;
+  }
+  return baseValid && (formData.value.systemPrompt?.trim() !== '');
 });
 
 const handleEdit = (model: ModelConfig) => {

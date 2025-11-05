@@ -79,7 +79,7 @@ export class ModelService {
       dto.apiEndpoint,
       dto.apiKey,
       dto.modelId,
-      dto.systemPrompt,
+      dto.systemPrompt ?? '',
       dto.temperature ?? null,
       dto.maxTokens ?? null,
       dto.topP ?? null,

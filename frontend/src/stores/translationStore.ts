@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { translationApi } from '@/api';
-import type { TranslationRequest, TranslationResponse } from '@/types';
+import type { TranslationRequest, TranslationResponse, TranslationProgressStart, TranslationProgressReview } from '@/types';
 
 export const useTranslationStore = defineStore('translation', () => {
   const currentTranslation = ref<TranslationResponse | null>(null);
@@ -13,11 +13,47 @@ export const useTranslationStore = defineStore('translation', () => {
     loading.value = true;
     error.value = null;
     try {
-      const response = await translationApi.translate(request);
-      if (response.success && response.data) {
-        currentTranslation.value = response.data;
-        return response.data;
+      currentTranslation.value = null;
+
+      // Stage 1
+      const startRes = await translationApi.progressStart(request);
+      if (!startRes.success || !startRes.data) throw new Error(startRes.error || 'Stage 1 failed');
+      const startData = startRes.data as TranslationProgressStart;
+
+      currentTranslation.value = {
+        id: '',
+        sourceText: startData.sourceText,
+        stage1Results: startData.stage1Results || [],
+        stage2Results: [],
+        stage3Results: [],
+        totalDuration: 0,
+        createdAt: new Date().toISOString()
+      } as TranslationResponse;
+
+      // Stage 2
+      const reviewRes = await translationApi.progressReview({
+        sourceText: startData.sourceText,
+        stage1Results: startData.stage1Results,
+        knowledgeContext: startData.knowledgeContext,
+        modelIds: request.modelIds
+      });
+      if (reviewRes.success && reviewRes.data) {
+        const reviewData = reviewRes.data as TranslationProgressReview;
+        if (currentTranslation.value) currentTranslation.value.stage2Results = reviewData.stage2Results || [];
       }
+
+      // Stage 3
+      const synthRes = await translationApi.progressSynthesis({
+        sourceText: startData.sourceText,
+        stage1Results: startData.stage1Results,
+        stage2Results: currentTranslation.value?.stage2Results || [],
+        knowledgeContext: startData.knowledgeContext,
+        modelIds: request.modelIds
+      });
+      if (synthRes.success && synthRes.data) {
+        currentTranslation.value = synthRes.data;
+      }
+      return currentTranslation.value;
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Translation failed';
       throw err;

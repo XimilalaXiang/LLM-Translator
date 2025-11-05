@@ -25,7 +25,7 @@ export interface CreateModelConfigDto {
   apiEndpoint: string;
   apiKey: string;
   modelId: string;
-  systemPrompt: string;
+  systemPrompt?: string;
   temperature?: number;
   maxTokens?: number;
   topP?: number;
@@ -73,6 +73,19 @@ export interface TranslationResponse {
   finalTranslation?: string;
   totalDuration: number;
   createdAt: string;
+}
+
+// Progressive API payloads
+export interface TranslationProgressStart {
+  sourceText: string;
+  stage1Results: TranslationStageResult[];
+  stage2Results: ReviewResult[];
+  stage3Results: TranslationStageResult[];
+  knowledgeContext?: string[];
+}
+
+export interface TranslationProgressReview {
+  stage2Results: ReviewResult[];
 }
 
 // Knowledge Base Types

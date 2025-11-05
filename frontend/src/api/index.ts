@@ -53,6 +53,10 @@ export const modelApi = {
 // Translation API
 export const translationApi = {
   translate: (data: TranslationRequest) => api.post<never, ApiResponse<TranslationResponse>>('/translations', data),
+  // progressive endpoints
+  progressStart: (data: TranslationRequest) => api.post<never, ApiResponse<any>>('/translations/progress/start', data),
+  progressReview: (payload: any) => api.post<never, ApiResponse<any>>('/translations/progress/review', payload),
+  progressSynthesis: (payload: any) => api.post<never, ApiResponse<TranslationResponse>>('/translations/progress/synthesis', payload),
   getHistory: (limit?: number) => api.get<never, ApiResponse<TranslationResponse[]>>('/translations/history', { params: { limit } }),
   getById: (id: string) => api.get<never, ApiResponse<TranslationResponse>>(`/translations/${id}`)
 };

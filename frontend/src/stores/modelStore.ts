@@ -110,12 +110,8 @@ export const useModelStore = defineStore('model', () => {
   }
 
   async function testModel(id: string) {
-    try {
-      const response = await modelApi.test(id);
-      return response.data?.connected || false;
-    } catch (err) {
-      return false;
-    }
+    const response = await modelApi.test(id);
+    return response.data?.connected || false;
   }
 
   async function toggleModel(id: string) {

@@ -155,7 +155,7 @@
               v-model="formData.apiEndpoint"
               type="url"
               class="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-black focus:outline-none"
-              placeholder="https://api.openai.com/v1/chat/completions"
+              :placeholder="formData.stage === 'embedding' ? 'https://api.openai.com/v1/embeddings' : 'https://api.openai.com/v1/chat/completions'"
             />
           </div>
 

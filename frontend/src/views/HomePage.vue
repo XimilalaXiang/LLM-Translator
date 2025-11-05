@@ -80,7 +80,7 @@
                 <span class="font-medium text-sm">{{ result.modelName }}</span>
                 <span class="text-xs text-gray-500">{{ result.duration }}ms</span>
               </div>
-              <p v-if="!result.error" class="text-gray-800">{{ result.output }}</p>
+              <div v-if="!result.error" class="prose prose-sm max-w-none text-gray-800" v-html="renderMd(result.output)"></div>
               <p v-else class="text-red-500 text-sm">错误: {{ result.error }}</p>
             </div>
           </div>
@@ -107,7 +107,7 @@
                 </span>
                 <span class="text-xs text-gray-500">{{ result.duration }}ms</span>
               </div>
-              <p v-if="!result.error" class="text-gray-800 text-sm">{{ result.output }}</p>
+              <div v-if="!result.error" class="prose prose-sm max-w-none text-gray-800" v-html="renderMd(result.output)"></div>
               <p v-else class="text-red-500 text-sm">错误: {{ result.error }}</p>
             </div>
           </div>
@@ -132,7 +132,7 @@
                 <span class="font-medium text-sm">{{ result.modelName }}</span>
                 <span class="text-xs text-gray-500">{{ result.duration }}ms</span>
               </div>
-              <p v-if="!result.error" class="text-gray-800">{{ result.output }}</p>
+              <div v-if="!result.error" class="prose prose-sm max-w-none text-gray-800" v-html="renderMd(result.output)"></div>
               <p v-else class="text-red-500 text-sm">错误: {{ result.error }}</p>
             </div>
           </div>
@@ -141,7 +141,7 @@
         <!-- Final Translation -->
         <div v-if="currentTranslation.finalTranslation" class="bg-black text-white rounded-xl p-6">
           <h3 class="text-lg font-bold mb-4">最终译文</h3>
-          <p class="text-base leading-relaxed">{{ currentTranslation.finalTranslation }}</p>
+          <div class="prose max-w-none" v-html="renderMd(currentTranslation.finalTranslation)"></div>
           <div class="mt-4 pt-4 border-t border-gray-700 text-sm text-gray-300">
             总耗时: {{ currentTranslation.totalDuration }}ms
           </div>
@@ -158,6 +158,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import MarkdownIt from 'markdown-it';
 import { useTranslationStore } from '@/stores/translationStore';
 import { useKnowledgeStore } from '@/stores/knowledgeStore';
 import { useModelStore } from '@/stores/modelStore';
@@ -178,6 +179,17 @@ const knowledgeBases = computed(() => knowledgeStore.knowledgeBases);
 const getModelName = (modelId: string) => {
   const model = modelStore.getModelById(modelId);
   return model?.name || 'Unknown Model';
+};
+
+// Markdown renderer
+const md = new MarkdownIt({ breaks: true, linkify: true });
+const renderMd = (text?: string) => {
+  if (!text) return '';
+  try {
+    return md.render(String(text));
+  } catch {
+    return String(text);
+  }
 };
 
 const handleTranslate = async () => {

@@ -33,7 +33,7 @@
                 <select
                   v-model="selectedKnowledgeBases"
                   multiple
-                  class="w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm"
+                  class="w-full px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-zinc-900 text-black dark:text-gray-100 focus:border-black dark:focus:border-white"
                 >
                   <option
                     v-for="kb in knowledgeBases"

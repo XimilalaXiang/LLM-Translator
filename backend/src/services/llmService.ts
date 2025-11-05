@@ -170,7 +170,7 @@ export class LLMService {
         },
         this.buildAxiosOptions(
           config.apiEndpoint,
-          {
+        {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${config.apiKey}`
           },

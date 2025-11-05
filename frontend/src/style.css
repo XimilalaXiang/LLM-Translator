@@ -87,3 +87,23 @@ body {
 .prose thead th {
   background-color: #f5f5f5;
 }
+
+/* Inverted (dark background) markdown tables */
+.prose-invert table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+
+.prose-invert th,
+.prose-invert td {
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  padding: 8px 10px;
+  vertical-align: top;
+  color: #ffffff;
+}
+
+.prose-invert thead th {
+  background-color: transparent; /* 继承容器黑底 */
+  color: #ffffff;
+}

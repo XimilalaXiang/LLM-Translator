@@ -141,7 +141,7 @@
         <!-- Final Translation -->
         <div v-if="currentTranslation.finalTranslation" class="bg-black text-white rounded-xl p-6">
           <h3 class="text-lg font-bold mb-4">最终译文</h3>
-          <div class="prose max-w-none" v-html="renderMd(currentTranslation.finalTranslation)"></div>
+          <div class="prose prose-invert max-w-none" v-html="renderMd(currentTranslation.finalTranslation)"></div>
           <div class="mt-4 pt-4 border-t border-gray-700 text-sm text-gray-300">
             总耗时: {{ currentTranslation.totalDuration }}ms
           </div>

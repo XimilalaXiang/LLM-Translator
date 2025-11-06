@@ -4,9 +4,10 @@ export interface ModelConfig {
   name: string;
   stage: 'translation' | 'review' | 'synthesis' | 'embedding';
   apiEndpoint: string;
-  apiKey: string;
+  apiKey?: string; // never returned by server; only used when creating/updating
   modelId: string;
   systemPrompt: string;
+  hasApiKey?: boolean; // whether the server has a stored (encrypted) key
   temperature?: number;
   maxTokens?: number;
   topP?: number;

@@ -1,14 +1,19 @@
 import { Router } from 'express';
 import { modelService } from '../services/modelService';
 import { llmService } from '../services/llmService';
-import type { ApiResponse, CreateModelConfigDto, UpdateModelConfigDto } from '../types';
+import type { ApiResponse, CreateModelConfigDto, UpdateModelConfigDto, ModelConfig } from '../types';
 
 const router = Router();
+
+function sanitizeModel(model: ModelConfig) {
+  const { apiKey, ...rest } = model as any;
+  return { ...rest, hasApiKey: Boolean(apiKey && String(apiKey).length > 0) };
+}
 
 // Get all models
 router.get('/', (req, res) => {
   try {
-    const models = modelService.getAllModels();
+    const models = modelService.getAllModels().map(sanitizeModel);
     const response: ApiResponse = {
       success: true,
       data: models
@@ -27,7 +32,7 @@ router.get('/', (req, res) => {
 router.get('/stage/:stage', (req, res) => {
   try {
     const { stage } = req.params;
-    const models = modelService.getModelsByStage(stage);
+    const models = modelService.getModelsByStage(stage).map(sanitizeModel);
     const response: ApiResponse = {
       success: true,
       data: models
@@ -58,7 +63,7 @@ router.get('/:id', (req, res) => {
 
     const response: ApiResponse = {
       success: true,
-      data: model
+      data: sanitizeModel(model)
     };
     res.json(response);
   } catch (error) {
@@ -77,7 +82,7 @@ router.post('/', (req, res) => {
     const model = modelService.createModel(dto);
     const response: ApiResponse = {
       success: true,
-      data: model,
+      data: sanitizeModel(model),
       message: 'Model created successfully'
     };
     res.status(201).json(response);
@@ -107,7 +112,7 @@ router.put('/:id', (req, res) => {
 
     const response: ApiResponse = {
       success: true,
-      data: model,
+      data: sanitizeModel(model),
       message: 'Model updated successfully'
     };
     res.json(response);

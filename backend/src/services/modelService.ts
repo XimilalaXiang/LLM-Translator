@@ -6,16 +6,26 @@ import type {
   UpdateModelConfigDto,
   DbModelConfig
 } from '../types';
+import { decryptSecret, encryptSecret, isEncryptedSecret } from '../utils/secret';
 
 export class ModelService {
   // Convert database row to ModelConfig
   private dbToModel(row: DbModelConfig): ModelConfig {
+    let apiKey = row.api_key || '';
+    try {
+      if (apiKey) {
+        apiKey = decryptSecret(apiKey);
+      }
+    } catch (e) {
+      // If decrypt fails, assume plaintext for backward compatibility
+      apiKey = row.api_key || '';
+    }
     return {
       id: row.id,
       name: row.name,
       stage: row.stage as any,
       apiEndpoint: row.api_endpoint,
-      apiKey: row.api_key,
+      apiKey,
       modelId: row.model_id,
       systemPrompt: row.system_prompt,
       temperature: row.temperature ?? undefined,
@@ -63,6 +73,7 @@ export class ModelService {
   createModel(dto: CreateModelConfigDto): ModelConfig {
     const id = uuidv4();
     const now = new Date().toISOString();
+    const storedApiKey = dto.apiKey ? encryptSecret(dto.apiKey) : '';
 
     const stmt = db.prepare(`
       INSERT INTO model_configs (
@@ -77,7 +88,7 @@ export class ModelService {
       dto.name,
       dto.stage,
       dto.apiEndpoint,
-      dto.apiKey,
+      storedApiKey,
       dto.modelId,
       dto.systemPrompt ?? '',
       dto.temperature ?? null,
@@ -117,8 +128,12 @@ export class ModelService {
       values.push(dto.apiEndpoint);
     }
     if (dto.apiKey !== undefined) {
-      updates.push('api_key = ?');
-      values.push(dto.apiKey);
+      const trimmed = (dto.apiKey ?? '').trim();
+      if (trimmed.length > 0) {
+        updates.push('api_key = ?');
+        values.push(encryptSecret(trimmed));
+      }
+      // If empty string provided, ignore to keep existing secret (only overwrite allowed)
     }
     if (dto.modelId !== undefined) {
       updates.push('model_id = ?');

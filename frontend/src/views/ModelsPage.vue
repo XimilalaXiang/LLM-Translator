@@ -165,7 +165,7 @@
               v-model="formData.apiKey"
               type="password"
               class="w-full px-3 py-2 border-2 border-gray-300 dark:border-gray-600 dark:bg-zinc-900 dark:text-gray-100 rounded-lg focus:border-black dark:focus:border-white focus:outline-none"
-              placeholder="sk-..."
+              :placeholder="editingModel ? '留空保持不变' : 'sk-...'"
             />
           </div>
 
@@ -273,10 +273,15 @@ const stageLabel = computed(() => {
 });
 
 const isFormValid = computed(() => {
-  return formData.value.name.trim() !== '' &&
+  const base = formData.value.name.trim() !== '' &&
     formData.value.apiEndpoint.trim() !== '' &&
-    formData.value.apiKey.trim() !== '' &&
     formData.value.modelId.trim() !== '';
+  if (editingModel.value) {
+    // Editing: API Key 可留空表示不修改
+    return base;
+  }
+  // Creating: API Key 必填
+  return base && formData.value.apiKey?.trim() !== '';
 });
 
 const handleEdit = (model: ModelConfig) => {
@@ -285,7 +290,7 @@ const handleEdit = (model: ModelConfig) => {
     name: model.name,
     stage: model.stage,
     apiEndpoint: model.apiEndpoint,
-    apiKey: model.apiKey,
+    apiKey: '', // 不回显，留空表示保持不变
     modelId: model.modelId,
     systemPrompt: model.systemPrompt,
     temperature: model.temperature,
@@ -301,7 +306,11 @@ const openCreateModal = () => {
 const handleSave = async () => {
   try {
     if (editingModel.value) {
-      await modelStore.updateModel(editingModel.value.id, formData.value);
+      const payload: any = { ...formData.value };
+      if (!payload.apiKey || payload.apiKey.trim() === '') {
+        delete payload.apiKey; // 留空则不修改后端存储的密钥
+      }
+      await modelStore.updateModel(editingModel.value.id, payload);
     } else {
       await modelStore.createModel(formData.value);
     }

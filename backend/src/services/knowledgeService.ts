@@ -6,7 +6,26 @@ import fs from 'fs';
 import path from 'path';
 import pdf from 'pdf-parse';
 import mammoth from 'mammoth';
-import pLimit from 'p-limit';
+// Simple concurrency limiter to avoid ESM-only deps in CJS runtime
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+
+  const workers = new Array(Math.max(1, concurrency)).fill(0).map(async () => {
+    while (true) {
+      const current = nextIndex++;
+      if (current >= items.length) break;
+      results[current] = await mapper(items[current], current);
+    }
+  });
+
+  await Promise.all(workers);
+  return results;
+}
 import type {
   KnowledgeBase,
   CreateKnowledgeBaseDto,
@@ -101,30 +120,26 @@ export class KnowledgeService {
     // Generate embeddings for chunks with concurrency control
     console.log(`Generating embeddings for ${chunks.length} chunks...`);
     const concurrency = parseInt(process.env.EMBEDDING_CONCURRENCY || '4', 10);
-    const limit = pLimit(Number.isFinite(concurrency) && concurrency > 0 ? concurrency : 4);
-    const chunksWithEmbeddings = await Promise.all(
-      chunks.map((chunk, index) =>
-        limit(async () => {
-          try {
-            const embedding = await llmService.generateEmbedding(embeddingModel, chunk);
-            return {
-              id: `${id}_chunk_${index}`,
-              content: chunk,
-              embedding,
-              metadata: { index, knowledgeBaseId: id }
-            };
-          } catch (error) {
-            console.error(`Failed to generate embedding for chunk ${index}:`, error);
-            return {
-              id: `${id}_chunk_${index}`,
-              content: chunk,
-              embedding: [],
-              metadata: { index, knowledgeBaseId: id }
-            };
-          }
-        })
-      )
-    );
+    const limit = Number.isFinite(concurrency) && concurrency > 0 ? concurrency : 4;
+    const chunksWithEmbeddings = await mapWithConcurrency(chunks, limit, async (chunk, index) => {
+      try {
+        const embedding = await llmService.generateEmbedding(embeddingModel, chunk);
+        return {
+          id: `${id}_chunk_${index}`,
+          content: chunk,
+          embedding,
+          metadata: { index, knowledgeBaseId: id }
+        };
+      } catch (error) {
+        console.error(`Failed to generate embedding for chunk ${index}:`, error);
+        return {
+          id: `${id}_chunk_${index}`,
+          content: chunk,
+          embedding: [],
+          metadata: { index, knowledgeBaseId: id }
+        };
+      }
+    });
 
     // Store in vector store
     vectorStore[id] = { chunks: chunksWithEmbeddings };
@@ -339,29 +354,25 @@ export class KnowledgeService {
         }
 
         const concurrency = parseInt(process.env.EMBEDDING_CONCURRENCY || '4', 10);
-        const limit = pLimit(Number.isFinite(concurrency) && concurrency > 0 ? concurrency : 4);
-        const chunksWithEmbeddings = await Promise.all(
-          chunks.map((chunk, index) =>
-            limit(async () => {
-              try {
-                const embedding = await llmService.generateEmbedding(embeddingModel, chunk);
-                return {
-                  id: `${kb.id}_chunk_${index}`,
-                  content: chunk,
-                  embedding,
-                  metadata: { index, knowledgeBaseId: kb.id }
-                };
-              } catch (error) {
-                return {
-                  id: `${kb.id}_chunk_${index}`,
-                  content: chunk,
-                  embedding: [],
-                  metadata: { index, knowledgeBaseId: kb.id }
-                };
-              }
-            })
-          )
-        );
+        const limit = Number.isFinite(concurrency) && concurrency > 0 ? concurrency : 4;
+        const chunksWithEmbeddings = await mapWithConcurrency(chunks, limit, async (chunk, index) => {
+          try {
+            const embedding = await llmService.generateEmbedding(embeddingModel, chunk);
+            return {
+              id: `${kb.id}_chunk_${index}`,
+              content: chunk,
+              embedding,
+              metadata: { index, knowledgeBaseId: kb.id }
+            };
+          } catch (error) {
+            return {
+              id: `${kb.id}_chunk_${index}`,
+              content: chunk,
+              embedding: [],
+              metadata: { index, knowledgeBaseId: kb.id }
+            };
+          }
+        });
 
         vectorStore[kb.id] = { chunks: chunksWithEmbeddings };
         console.log(`Loaded knowledge base: ${kb.name}`);

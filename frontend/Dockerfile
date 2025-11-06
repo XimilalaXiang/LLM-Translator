@@ -5,7 +5,7 @@ WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
-RUN npm run build
+RUN npm run build:prod
 
 FROM nginx:1.25-alpine
 # Nginx config with proxy to backend service

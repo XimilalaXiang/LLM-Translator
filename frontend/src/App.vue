@@ -68,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import MobileTabBar from '@/components/MobileTabBar.vue';
 import { useModelStore } from '@/stores/modelStore';
@@ -80,16 +80,28 @@ const knowledgeStore = useKnowledgeStore();
 const auth = useAuthStore();
 const route = useRoute();
 
-onMounted(() => {
-  // Load initial data
-  modelStore.fetchModels();
-  knowledgeStore.fetchKnowledgeBases();
+onMounted(async () => {
   // initialize theme
   const saved = localStorage.getItem('theme');
   const preferDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   const enableDark = saved ? saved === 'dark' : preferDark;
   setDark(enableDark);
-  auth.fetchStatus();
+  // 先获取鉴权状态，再加载与用户相关的数据，避免首次登录后需要刷新
+  await auth.fetchStatus();
+  (window as any).__currentUserId = auth.user?.id;
+  await Promise.all([
+    modelStore.fetchModels(),
+    knowledgeStore.fetchKnowledgeBases()
+  ]);
+});
+
+// 监听登录/注销切换，自动刷新与用户相关的数据
+watch(() => auth.user?.id, async () => {
+  (window as any).__currentUserId = auth.user?.id;
+  await Promise.all([
+    modelStore.fetchModels(),
+    knowledgeStore.fetchKnowledgeBases()
+  ]);
 });
 
 const isDark = ref(false);

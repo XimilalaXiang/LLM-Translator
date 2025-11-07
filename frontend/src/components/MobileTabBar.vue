@@ -25,8 +25,16 @@ const items = computed(() => {
     { to: '/knowledge', label: '知识库' },
     { to: '/history', label: '历史' }
   ];
-  const me = auth.user ? (auth.user.role === 'admin' ? { to: '/admin', label: '系统' } : { to: '/login', label: '我的' }) : { to: '/login', label: '登录' };
-  return [...base, me];
+  const extra: { to: string; label: string }[] = [];
+  // 仅管理员显示“系统”；未登录才显示“登录”；普通已登录用户不显示额外入口
+  if (auth.authEnabled) {
+    if (auth.user?.role === 'admin') {
+      extra.push({ to: '/admin', label: '系统' });
+    } else if (!auth.user) {
+      extra.push({ to: '/login', label: '登录' });
+    }
+  }
+  return [...base, ...extra];
 });
 
 function isActive(path: string) {

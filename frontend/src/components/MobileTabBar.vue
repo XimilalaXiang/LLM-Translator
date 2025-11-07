@@ -1,7 +1,7 @@
 <template>
   <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-black/90 border-t border-gray-200 dark:border-gray-700 backdrop-blur supports-[backdrop-filter]:bg-white/70 supports-[backdrop-filter]:dark:bg-black/70">
-    <ul class="grid grid-cols-5 text-xs text-center">
-      <li v-for="item in items" :key="item.to">
+    <ul class="flex text-xs">
+      <li v-for="item in items" :key="item.to" class="flex-1 text-center">
         <router-link :to="item.to" class="block py-2" :class="isActive(item.to) ? 'text-black dark:text-white font-semibold' : 'text-gray-500 dark:text-gray-400'">
           <div>{{ item.label }}</div>
         </router-link>

@@ -51,12 +51,20 @@
           </div>
         </div>
 
-        <button
-          @click="handleDelete(kb.id)"
-          class="w-full px-3 py-2 text-sm border-2 border-red-300 text-red-600 rounded-lg hover:border-red-500 transition-colors"
-        >
-          删除
-        </button>
+        <div class="flex gap-2">
+          <button
+            @click="toggleKb(kb.id)"
+            class="flex-1 px-3 py-2 text-sm border-2 border-gray-300 rounded-lg hover:border-black transition-colors"
+          >
+            {{ kb.enabled === false ? '启用' : '禁用' }}
+          </button>
+          <button
+            @click="handleDelete(kb.id)"
+            class="flex-1 px-3 py-2 text-sm border-2 border-red-300 text-red-600 rounded-lg hover:border-red-500 transition-colors"
+          >
+            删除
+          </button>
+        </div>
       </div>
 
       <div v-if="knowledgeBases.length === 0" class="col-span-full text-center py-12 text-gray-500 dark:text-gray-400">
@@ -223,6 +231,12 @@ const handleDelete = async (id: string) => {
       alert('删除失败: ' + (err instanceof Error ? err.message : '未知错误'));
     }
   }
+};
+
+const toggleKb = async (id: string) => {
+  try {
+    await knowledgeStore.toggleKnowledgeBase(id);
+  } catch {}
 };
 
 const closeModal = () => {

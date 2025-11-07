@@ -115,6 +115,30 @@ export function initDatabase() {
     )
   `);
 
+  // Per-user model preferences (enable/disable shared models locally)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_model_prefs (
+      user_id TEXT NOT NULL,
+      model_id TEXT NOT NULL,
+      enabled INTEGER NOT NULL,
+      PRIMARY KEY (user_id, model_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (model_id) REFERENCES model_configs(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Per-user knowledge base preferences
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_kb_prefs (
+      user_id TEXT NOT NULL,
+      kb_id TEXT NOT NULL,
+      enabled INTEGER NOT NULL,
+      PRIMARY KEY (user_id, kb_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (kb_id) REFERENCES knowledge_bases(id) ON DELETE CASCADE
+    )
+  `);
+
   // Try to add user_id to translation_history for per-user isolation (older databases)
   try {
     db.exec(`ALTER TABLE translation_history ADD COLUMN user_id TEXT`);
@@ -134,6 +158,8 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_translation_history_created_at ON translation_history(created_at);
     CREATE INDEX IF NOT EXISTS idx_translation_history_user_id ON translation_history(user_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_user_model_prefs_user ON user_model_prefs(user_id);
+    CREATE INDEX IF NOT EXISTS idx_user_kb_prefs_user ON user_kb_prefs(user_id);
   `);
 
   console.log('Database initialized successfully');

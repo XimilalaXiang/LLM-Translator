@@ -63,12 +63,37 @@ export class ModelService {
     return rows.map(row => this.dbToModel(row));
   }
 
+  getUserPreference(userId: string, modelId: string): boolean | null {
+    try {
+      const row = db.prepare('SELECT enabled FROM user_model_prefs WHERE user_id = ? AND model_id = ?').get(userId, modelId) as any;
+      if (!row) return null;
+      return row.enabled === 1;
+    } catch {
+      return null;
+    }
+  }
+
+  setUserPreference(userId: string, modelId: string, enabled: boolean): void {
+    const stmt = db.prepare('INSERT INTO user_model_prefs(user_id, model_id, enabled) VALUES(?,?,?) ON CONFLICT(user_id, model_id) DO UPDATE SET enabled = excluded.enabled');
+    stmt.run(userId, modelId, enabled ? 1 : 0);
+  }
+
+  applyEffectiveEnabled(models: ModelConfig[], userId?: string): ModelConfig[] {
+    if (!userId) return models;
+    return models.map(m => {
+      const pref = this.getUserPreference(userId, m.id);
+      const effective = pref === null ? m.enabled : pref;
+      return { ...m, enabled: effective } as ModelConfig;
+    });
+  }
+
   // Get models by stage
   getModelsByStageForUser(stage: string, userId?: string, isAdmin?: boolean): ModelConfig[] {
     const scope = this.scopeWhere(userId, isAdmin);
     const stmt = db.prepare(`SELECT * FROM model_configs WHERE stage = ? AND ${scope.clause} ORDER BY order_num, created_at`);
     const rows = stmt.all(stage, ...scope.params) as DbModelConfig[];
-    return rows.map(row => this.dbToModel(row));
+    const list = rows.map(row => this.dbToModel(row));
+    return this.applyEffectiveEnabled(list, userId);
   }
 
   // Get enabled models by stage
@@ -76,7 +101,8 @@ export class ModelService {
     const scope = this.scopeWhere(userId, isAdmin);
     const stmt = db.prepare(`SELECT * FROM model_configs WHERE stage = ? AND enabled = 1 AND ${scope.clause} ORDER BY order_num, created_at`);
     const rows = stmt.all(stage, ...scope.params) as DbModelConfig[];
-    return rows.map(row => this.dbToModel(row));
+    const list = rows.map(row => this.dbToModel(row));
+    return this.applyEffectiveEnabled(list, userId).filter(m => m.enabled);
   }
 
   // Get model by ID

@@ -116,8 +116,15 @@ export const useModelStore = defineStore('model', () => {
 
   async function toggleModel(id: string) {
     const model = models.value.find(m => m.id === id);
-    if (model) {
-      await updateModel(id, { enabled: !model.enabled });
+    if (!model) return;
+    // 拥有者：直接更新模型；非拥有者：设置个人偏好
+    const isOwner = (model as any).ownerUserId && (model as any).ownerUserId === (window as any).__currentUserId;
+    const next = !model.enabled;
+    if (isOwner) {
+      await updateModel(id, { enabled: next });
+    } else {
+      await modelApi.setPreference(id, next);
+      model.enabled = next;
     }
   }
 

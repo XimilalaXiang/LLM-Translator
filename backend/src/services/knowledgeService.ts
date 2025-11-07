@@ -86,10 +86,12 @@ export class KnowledgeService {
     let rows: DbKnowledgeBase[] = [];
     if (!userId) {
       rows = db.prepare('SELECT * FROM knowledge_bases ORDER BY created_at DESC').all() as DbKnowledgeBase[];
+      return rows.map(row => ({ ...this.dbToKnowledgeBase(row), enabled: true }));
     } else {
       rows = db.prepare('SELECT * FROM knowledge_bases WHERE (owner_user_id = ? OR is_public = 1) ORDER BY created_at DESC').all(userId) as DbKnowledgeBase[];
+      const list = rows.map(row => ({ ...this.dbToKnowledgeBase(row), enabled: true } as KnowledgeBase));
+      return this.applyEffectiveEnabled(list, userId);
     }
-    return rows.map(row => this.dbToKnowledgeBase(row));
   }
 
   /**
@@ -99,6 +101,25 @@ export class KnowledgeService {
     const stmt = db.prepare('SELECT * FROM knowledge_bases WHERE id = ?');
     const row = stmt.get(id) as DbKnowledgeBase | undefined;
     return row ? this.dbToKnowledgeBase(row) : null;
+  }
+
+  getUserPreference(userId: string, kbId: string): boolean | null {
+    try {
+      const r = db.prepare('SELECT enabled FROM user_kb_prefs WHERE user_id = ? AND kb_id = ?').get(userId, kbId) as any;
+      if (!r) return null; return r.enabled === 1;
+    } catch { return null; }
+  }
+
+  setUserPreference(userId: string, kbId: string, enabled: boolean): void {
+    db.prepare('INSERT INTO user_kb_prefs(user_id, kb_id, enabled) VALUES(?,?,?) ON CONFLICT(user_id, kb_id) DO UPDATE SET enabled = excluded.enabled')
+      .run(userId, kbId, enabled ? 1 : 0);
+  }
+
+  applyEffectiveEnabled(list: KnowledgeBase[], userId: string): KnowledgeBase[] {
+    return list.map(k => {
+      const pref = this.getUserPreference(userId, k.id);
+      return { ...k, enabled: pref === null ? true : pref } as KnowledgeBase;
+    });
   }
 
   /**
@@ -218,10 +239,11 @@ export class KnowledgeService {
     let kbIds: string[];
     const accessible = this.getAllKnowledgeBasesForUser(userId, isAdmin);
     const accessibleSet = new Set(accessible.map(k => k.id));
+    const disabledSet = new Set(accessible.filter(k => k.enabled === false).map(k => k.id));
     if (knowledgeBaseIds && knowledgeBaseIds.length > 0) {
-      kbIds = knowledgeBaseIds.filter(id => accessibleSet.has(id));
+      kbIds = knowledgeBaseIds.filter(id => accessibleSet.has(id) && !disabledSet.has(id));
     } else {
-      kbIds = [...accessibleSet];
+      kbIds = [...accessibleSet].filter(id => !disabledSet.has(id));
     }
 
     if (kbIds.length === 0) {

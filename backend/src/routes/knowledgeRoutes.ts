@@ -188,4 +188,21 @@ router.post('/search', async (req, res) => {
   }
 });
 
+// per-user preference for knowledge base enable/disable
+router.post('/:id/pref', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { enabled } = req.body as { enabled?: boolean };
+    if (typeof enabled !== 'boolean') return res.status(400).json({ success: false, error: 'enabled must be boolean' });
+    const userId = (req as any).user?.id as string | undefined;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+    const kb = knowledgeService.getKnowledgeBaseById(id);
+    if (!kb) return res.status(404).json({ success: false, error: 'Knowledge base not found' });
+    knowledgeService.setUserPreference(userId, id, enabled);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e?.message || 'Failed' });
+  }
+});
+
 export default router;

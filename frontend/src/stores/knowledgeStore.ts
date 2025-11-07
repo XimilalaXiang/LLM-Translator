@@ -57,6 +57,14 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     }
   }
 
+  async function toggleKnowledgeBase(id: string) {
+    const kb = knowledgeBases.value.find(k => k.id === id);
+    if (!kb) return;
+    const next = !(kb.enabled !== false);
+    await knowledgeApi.setPreference(id, next);
+    kb.enabled = next;
+  }
+
   function getKnowledgeBaseById(id: string) {
     return knowledgeBases.value.find(kb => kb.id === id);
   }
@@ -68,6 +76,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     fetchKnowledgeBases,
     createKnowledgeBase,
     deleteKnowledgeBase,
-    getKnowledgeBaseById
+    getKnowledgeBaseById,
+    toggleKnowledgeBase
   };
 });

@@ -175,7 +175,7 @@ const selectedKnowledgeBases = ref<string[]>([]);
 const loading = computed(() => translationStore.loading);
 const error = computed(() => translationStore.error);
 const currentTranslation = computed(() => translationStore.currentTranslation);
-const knowledgeBases = computed(() => knowledgeStore.knowledgeBases);
+const knowledgeBases = computed(() => knowledgeStore.knowledgeBases.filter(k => k.enabled !== false));
 
 const getModelName = (modelId: string) => {
   const model = modelStore.getModelById(modelId);

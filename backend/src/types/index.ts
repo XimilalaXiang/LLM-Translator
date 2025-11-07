@@ -94,6 +94,7 @@ export interface KnowledgeBase {
   embeddingModelId: string;
   ownerUserId?: string;
   isPublic?: boolean;
+  enabled?: boolean;
   createdAt: string;
   updatedAt: string;
 }

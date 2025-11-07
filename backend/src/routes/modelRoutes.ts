@@ -15,7 +15,7 @@ router.get('/', (req, res) => {
   try {
     const userId = (req as any).user?.id as string | undefined;
     const isAdmin = (req as any).user?.role === 'admin';
-    const models = modelService.getAllModelsForUser(userId, isAdmin).map(sanitizeModel);
+    const models = modelService.applyEffectiveEnabled(modelService.getAllModelsForUser(userId, isAdmin), userId).map(sanitizeModel);
     const response: ApiResponse = {
       success: true,
       data: models
@@ -226,6 +226,25 @@ router.post('/stage/:stage/reorder', (req, res) => {
       error: error instanceof Error ? error.message : 'Unknown error'
     };
     res.status(500).json(response);
+  }
+});
+
+// Set per-user preference for model enable/disable (non-owner allowed)
+router.post('/:id/pref', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { enabled } = req.body as { enabled?: boolean };
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ success: false, error: 'enabled must be boolean' });
+    }
+    const userId = (req as any).user?.id as string | undefined;
+    if (!userId) return res.status(401).json({ success: false, error: 'Authentication required' });
+    const model = modelService.getModelByIdForUser(id, userId, (req as any).user?.role === 'admin');
+    if (!model) return res.status(404).json({ success: false, error: 'Model not found' });
+    modelService.setUserPreference(userId, id, enabled);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e?.message || 'Failed' });
   }
 });
 

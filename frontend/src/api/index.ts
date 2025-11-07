@@ -48,7 +48,8 @@ export const modelApi = {
   update: (id: string, data: Partial<CreateModelConfigDto>) => api.put<never, ApiResponse<ModelConfig>>(`/models/${id}`, data),
   delete: (id: string) => api.delete<never, ApiResponse>(`/models/${id}`),
   test: (id: string) => api.post<never, ApiResponse<{ connected: boolean }>>(`/models/${id}/test`),
-  reorder: (stage: string, modelIds: string[]) => api.post<never, ApiResponse>(`/models/stage/${stage}/reorder`, { modelIds })
+  reorder: (stage: string, modelIds: string[]) => api.post<never, ApiResponse>(`/models/stage/${stage}/reorder`, { modelIds }),
+  setPreference: (id: string, enabled: boolean) => api.post<never, ApiResponse>(`/models/${id}/pref`, { enabled })
 };
 
 // Translation API
@@ -80,7 +81,8 @@ export const knowledgeApi = {
       }
     });
   },
-  delete: (id: string) => api.delete<never, ApiResponse>(`/knowledge/${id}`)
+  delete: (id: string) => api.delete<never, ApiResponse>(`/knowledge/${id}`),
+  setPreference: (id: string, enabled: boolean) => api.post<never, ApiResponse>(`/knowledge/${id}/pref`, { enabled })
 };
 
 // Auth & Admin API

@@ -17,7 +17,6 @@ router.post('/', async (req, res) => {
       };
       return res.status(400).json(response);
     }
-    // @ts-expect-error augment
     const userId = (req as any).user?.id as string | undefined;
     const result = await translationService.translate(request, userId);
 
@@ -40,7 +39,6 @@ router.post('/', async (req, res) => {
 router.get('/history', (req, res) => {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
-    // @ts-expect-error augment
     const userId = (req as any).user?.id as string | undefined;
     const history = translationService.getHistory(limit, userId);
 
@@ -67,7 +65,6 @@ router.get('/history/search', (req, res) => {
       const response: ApiResponse = { success: true, data: [] };
       return res.json(response);
     }
-    // @ts-expect-error augment
     const userId = (req as any).user?.id as string | undefined;
     const results = translationService.searchHistory(q, limit, userId);
     const response: ApiResponse = { success: true, data: results };
@@ -215,7 +212,6 @@ router.post('/progress/synthesis', async (req, res) => {
       modelIds?.synthesis
     );
 
-    // @ts-expect-error augment
     const userId = (req as any).user?.id as string | undefined;
     const final = await translationService.finalizeAndSave(
       sourceText,

@@ -219,42 +219,84 @@ export class LLMService {
    */
   async generateEmbedding(config: ModelConfig, text: string): Promise<number[]> {
     try {
-      // Different APIs may have different formats for embedding
-      // This is a generic implementation that may need adjustment
-      const response = await axios.post(
-        config.apiEndpoint,
-        {
-          model: config.modelId,
-          input: text
-        },
-        this.buildAxiosOptions(
-          config.apiEndpoint,
-        {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${config.apiKey}`
-          },
-          60000
-        )
-      );
+      // Many OpenAI-compatible providers use different endpoints for embeddings vs chat
+      // If the configured endpoint looks like a chat endpoint, try to derive an embeddings endpoint.
+      const deriveEmbeddingEndpoints = (endpoint: string): string[] => {
+        const candidates: string[] = [];
+        try {
+          const u = new URL(endpoint);
+          let p = u.pathname;
+          const replacements = [
+            ['chat/completions', 'embeddings'],
+            ['/chat/completions', '/embeddings'],
+            ['/messages', '/embeddings'],
+            ['completions', 'embeddings']
+          ];
+          for (const [from, to] of replacements) {
+            if (p.includes(from)) {
+              const replaced = p.replace(from, to);
+              const newUrl = `${u.origin}${replaced}`;
+              candidates.push(newUrl);
+            }
+          }
+        } catch {
+          // ignore parse error
+        }
+        // Always include the original endpoint as last resort
+        candidates.push(endpoint);
+        // unique
+        return Array.from(new Set(candidates));
+      };
 
-      // Extract embedding from response
-      // The format might vary by provider
-      if (response.data.data && response.data.data[0]?.embedding) {
-        return response.data.data[0].embedding;
+      const endpointsToTry = deriveEmbeddingEndpoints(config.apiEndpoint);
+      let lastError: any = null;
+      for (const endpoint of endpointsToTry) {
+        try {
+          const response = await axios.post(
+            endpoint,
+            {
+              model: config.modelId,
+              input: text
+            },
+            this.buildAxiosOptions(
+              endpoint,
+              {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.apiKey}`
+              },
+              60000
+            )
+          );
+
+          // Extract embedding from response (OpenAI/compatible or generic)
+          if (response.data?.data && Array.isArray(response.data.data) && response.data.data[0]?.embedding) {
+            return response.data.data[0].embedding as number[];
+          }
+          if (Array.isArray(response.data) && response.data[0]?.embedding) {
+            return response.data[0].embedding as number[];
+          }
+          if (response.data?.embedding) {
+            return response.data.embedding as number[];
+          }
+
+          // If format not recognized, continue to next candidate
+          lastError = new Error('Invalid embedding response format');
+        } catch (err) {
+          lastError = err;
+          // continue to next candidate
+        }
       }
 
-      if (response.data.embedding) {
-        return response.data.embedding;
-      }
-
-      throw new Error('Invalid embedding response format');
+      // If all attempts failed, surface the most recent error message
+      const axiosError = lastError as AxiosError;
+      const errorMessage = axiosError?.response?.data
+        ? JSON.stringify(axiosError.response.data)
+        : axiosError?.message || 'Embedding request failed';
+      throw new Error(`Embedding generation failed: ${errorMessage}`);
     } catch (error) {
       const axiosError = error as AxiosError;
-      const errorMessage = axiosError.response?.data
-        ? JSON.stringify(axiosError.response.data)
-        : axiosError.message;
-
-      throw new Error(`Embedding generation failed: ${errorMessage}`);
+      const errorMessage = axiosError?.message || String(error);
+      throw new Error(`Embedding generation failed: ${axiosError?.response?.data ? JSON.stringify(axiosError.response.data) : errorMessage}`);
     }
   }
 

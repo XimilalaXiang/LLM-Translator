@@ -5,11 +5,18 @@ import { requireAdmin } from '../utils/authMiddleware';
 
 const router = Router();
 
-router.get('/settings', requireAdmin, (_req, res) => {
+router.get('/settings', (req, res, next) => {
+  // When auth is disabled, allow reading freely; otherwise require admin
+  if (authService.isAuthEnabled()) return requireAdmin(req, res, next);
+  next();
+}, (_req, res) => {
   res.json({ success: true, data: { authEnabled: authService.isAuthEnabled() } });
 });
 
-router.post('/settings', requireAdmin, (req, res) => {
+router.post('/settings', (req, res, next) => {
+  if (authService.isAuthEnabled()) return requireAdmin(req, res, next);
+  next();
+}, (req, res) => {
   const { authEnabled } = req.body as { authEnabled?: boolean };
   if (typeof authEnabled !== 'boolean') {
     return res.status(400).json({ success: false, error: 'authEnabled must be boolean' });
@@ -36,6 +43,32 @@ router.post('/bootstrap', (req, res) => {
     res.json({ success: true, data: { user: admin } });
   } catch (e: any) {
     res.status(500).json({ success: false, error: e?.message || 'Bootstrap failed' });
+  }
+});
+
+// Danger zone: reset models (and optionally knowledge bases)
+router.post('/reset-models', (req, res, next) => {
+  // Require admin when auth enabled; allow during initial setup when auth disabled
+  if (authService.isAuthEnabled()) return requireAdmin(req, res, next);
+  next();
+}, (req, res) => {
+  try {
+    const { deleteKnowledgeBases } = req.body as { deleteKnowledgeBases?: boolean };
+    const tx = db.transaction(() => {
+      if (deleteKnowledgeBases) {
+        db.prepare('DELETE FROM knowledge_bases').run();
+      }
+      db.prepare('DELETE FROM model_configs').run();
+    });
+    try {
+      tx();
+    } catch (e) {
+      // If RESTRICT fails due to existing knowledge base when not deleting them
+      return res.status(409).json({ success: false, error: 'Cannot delete models: knowledge bases depend on them. Set deleteKnowledgeBases=true to force.' });
+    }
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e?.message || 'Reset failed' });
   }
 });
 

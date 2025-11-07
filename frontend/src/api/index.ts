@@ -14,7 +14,8 @@ const api = axios.create({
   timeout: 300000, // 5 minutes for long-running translation tasks
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  withCredentials: true
 });
 
 // Request interceptor
@@ -80,6 +81,22 @@ export const knowledgeApi = {
     });
   },
   delete: (id: string) => api.delete<never, ApiResponse>(`/knowledge/${id}`)
+};
+
+// Auth & Admin API
+export const authApi = {
+  status: () => api.get('/auth/status'),
+  login: (username: string, password: string) => api.post('/auth/login', { username, password }),
+  register: (username: string, password: string) => api.post('/auth/register', { username, password }),
+  logout: () => api.post('/auth/logout', {}),
+  me: () => api.get('/auth/me')
+};
+
+export const adminApi = {
+  getSettings: () => api.get('/admin/settings'),
+  updateSettings: (authEnabled: boolean) => api.post('/admin/settings', { authEnabled }),
+  bootstrap: (username: string, password: string) => api.post('/admin/bootstrap', { username, password }),
+  resetModels: (deleteKnowledgeBases = true) => api.post('/admin/reset-models', { deleteKnowledgeBases })
 };
 
 // Health check

@@ -1,4 +1,5 @@
 import express from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
@@ -51,7 +52,6 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/api/auth')) return next();
   if (req.path.startsWith('/api/admin')) return next();
   if (!authService.isAuthEnabled()) return next();
-  // @ts-expect-error augment
   if (!(req as any).user) {
     return res.status(401).json({ success: false, error: 'Authentication required' });
   }
@@ -72,12 +72,10 @@ app.get('/api/health', (req, res) => {
 });
 
 // Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+  const message = err instanceof Error ? err.message : 'Internal server error';
   console.error('Error:', err);
-  res.status(500).json({
-    success: false,
-    error: err.message || 'Internal server error'
-  });
+  res.status(500).json({ success: false, error: message });
 });
 
 // Start server

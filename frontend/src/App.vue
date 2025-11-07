@@ -35,9 +35,22 @@
               >
                 历史记录
               </router-link>
+              <router-link
+                v-if="route.path === '/admin'"
+                to="/admin"
+                class="nav-link"
+                active-class="nav-link-active"
+              >
+                管理员
+              </router-link>
             </nav>
           </div>
           <div class="flex items-center space-x-3">
+            <template v-if="auth.authEnabled">
+              <span v-if="auth.user" class="text-sm">{{ auth.user.username }}</span>
+              <router-link v-else to="/login" class="px-3 py-1 text-sm border-2 border-gray-300 dark:border-gray-600 rounded-md hover:border-black dark:hover:border-white transition-colors">登录</router-link>
+              <button v-if="auth.user" @click="logout" class="px-3 py-1 text-sm border-2 border-gray-300 dark:border-gray-600 rounded-md hover:border-black dark:hover:border-white transition-colors">退出</button>
+            </template>
             <button @click="toggleTheme" class="px-3 py-1 text-sm border-2 border-gray-300 dark:border-gray-600 rounded-md hover:border-black dark:hover:border-white transition-colors">
               {{ isDark ? '切换到亮色' : '切换到暗色' }}
             </button>
@@ -55,11 +68,15 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import { useModelStore } from '@/stores/modelStore';
 import { useKnowledgeStore } from '@/stores/knowledgeStore';
+import { useAuthStore } from '@/stores/authStore';
 
 const modelStore = useModelStore();
 const knowledgeStore = useKnowledgeStore();
+const auth = useAuthStore();
+const route = useRoute();
 
 onMounted(() => {
   // Load initial data
@@ -70,6 +87,7 @@ onMounted(() => {
   const preferDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   const enableDark = saved ? saved === 'dark' : preferDark;
   setDark(enableDark);
+  auth.fetchStatus();
 });
 
 const isDark = ref(false);
@@ -81,6 +99,10 @@ function setDark(v: boolean) {
 }
 function toggleTheme() {
   setDark(!isDark.value);
+}
+
+async function logout() {
+  await auth.logout();
 }
 </script>
 

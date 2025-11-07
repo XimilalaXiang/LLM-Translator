@@ -4,7 +4,6 @@ import { authService } from '../services/authService';
 const router = Router();
 
 router.get('/status', (req, res) => {
-  // @ts-expect-error augment
   const user = (req as any).user || null;
   res.json({ success: true, data: { authEnabled: authService.isAuthEnabled(), user } });
 });
@@ -47,7 +46,6 @@ router.post('/login', (req, res) => {
 
 router.post('/logout', (req, res) => {
   try {
-    // @ts-expect-error augment
     const sessionId = (req as any).sessionId as string | undefined;
     if (sessionId) authService.deleteSession(sessionId);
     res.setHeader('Set-Cookie', 'sessionId=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0');
@@ -58,7 +56,6 @@ router.post('/logout', (req, res) => {
 });
 
 router.get('/me', (req, res) => {
-  // @ts-expect-error augment
   const user = (req as any).user || null;
   res.json({ success: true, data: { user } });
 });

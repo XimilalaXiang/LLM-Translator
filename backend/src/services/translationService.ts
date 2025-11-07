@@ -460,11 +460,11 @@ ${sourceText}
       `);
       rows = stmt.all(userId, limit) as any[];
     } else {
-      const stmt = db.prepare(`
-        SELECT * FROM translation_history
-        ORDER BY created_at DESC
-        LIMIT ?
-      `);
+    const stmt = db.prepare(`
+      SELECT * FROM translation_history
+      ORDER BY created_at DESC
+      LIMIT ?
+    `);
       rows = stmt.all(limit) as any[];
     }
     return rows.map(row => JSON.parse(row.result_json));
@@ -495,12 +495,12 @@ ${sourceText}
       `);
       rows = stmt.all(userId, `%${query}%`, limit) as any[];
     } else {
-      const stmt = db.prepare(`
-        SELECT * FROM translation_history
-        WHERE source_text LIKE ?
-        ORDER BY created_at DESC
-        LIMIT ?
-      `);
+    const stmt = db.prepare(`
+      SELECT * FROM translation_history
+      WHERE source_text LIKE ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `);
       rows = stmt.all(`%${query}%`, limit) as any[];
     }
     return rows.map(row => JSON.parse(row.result_json));

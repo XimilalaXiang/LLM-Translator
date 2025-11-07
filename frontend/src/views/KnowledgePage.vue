@@ -22,7 +22,10 @@
       >
         <div class="flex items-start justify-between mb-4">
           <div class="flex-1">
-            <h3 class="text-lg font-bold mb-2">{{ kb.name }}</h3>
+            <div class="flex items-center space-x-2 mb-2">
+              <h3 class="text-lg font-bold">{{ kb.name }}</h3>
+              <span v-if="kb.isPublic" class="px-2 py-0.5 text-[10px] rounded bg-blue-100 text-blue-700">共享</span>
+            </div>
             <p v-if="kb.description" class="text-sm text-gray-600 dark:text-gray-300 mb-3">
               {{ kb.description }}
             </p>
@@ -155,9 +158,12 @@
 import { ref, computed } from 'vue';
 import { useKnowledgeStore } from '@/stores/knowledgeStore';
 import { useModelStore } from '@/stores/modelStore';
+import { useAuthStore } from '@/stores/authStore';
 
 const knowledgeStore = useKnowledgeStore();
 const modelStore = useModelStore();
+const authStore = useAuthStore();
+const currentUserId = computed(() => authStore.user?.id);
 
 const showUploadModal = ref(false);
 const uploading = ref(false);

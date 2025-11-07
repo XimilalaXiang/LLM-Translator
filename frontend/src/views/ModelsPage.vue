@@ -43,6 +43,7 @@
           <div class="flex-1">
             <div class="flex items-center space-x-3 mb-3">
               <h3 class="text-lg font-bold">{{ model.name }}</h3>
+              <span v-if="model.isPublic" class="px-2 py-0.5 text-[10px] rounded bg-blue-100 text-blue-700">共享</span>
               <span
                 :class="[
                   'px-2 py-1 text-xs font-medium rounded',
@@ -237,9 +238,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useModelStore } from '@/stores/modelStore';
+import { useAuthStore } from '@/stores/authStore';
 import type { ModelConfig, CreateModelConfigDto } from '@/types';
 
 const modelStore = useModelStore();
+const authStore = useAuthStore();
+const currentUserId = computed(() => authStore.user?.id);
 
 const stages = [
   { value: 'translation', label: '翻译模型' },

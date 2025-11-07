@@ -122,12 +122,17 @@ router.post('/progress/start', async (req, res) => {
     // Compute knowledge context once if needed
     let knowledgeContext: string[] = [];
     if (request.useKnowledgeBase) {
-      const results = await knowledgeService.search({
-        query: request.sourceText,
-        knowledgeBaseIds: request.knowledgeBaseIds,
-        topK: 5
-      });
-      knowledgeContext = results.map(r => r.content);
+      try {
+        const results = await knowledgeService.search({
+          query: request.sourceText,
+          knowledgeBaseIds: request.knowledgeBaseIds,
+          topK: 5
+        });
+        knowledgeContext = results.map(r => r.content);
+      } catch (e) {
+        // 兜底：知识库检索失败时不影响整体流程
+        knowledgeContext = [];
+      }
     }
 
     const stage1Results: TranslationStageResult[] = await translationService.runStage1(

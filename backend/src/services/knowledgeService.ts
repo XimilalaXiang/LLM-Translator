@@ -241,9 +241,11 @@ export class KnowledgeService {
     const accessible = this.getAllKnowledgeBasesForUser(userId, isAdmin);
     const accessibleSet = new Set(accessible.map(k => k.id));
     const disabledSet = new Set(accessible.filter(k => k.enabled === false).map(k => k.id));
-    if (knowledgeBaseIds && knowledgeBaseIds.length > 0) {
-      kbIds = knowledgeBaseIds.filter(id => accessibleSet.has(id) && !disabledSet.has(id));
+    // If knowledgeBaseIds is provided (even empty), respect it strictly.
+    if (knowledgeBaseIds !== undefined) {
+      kbIds = (knowledgeBaseIds || []).filter(id => accessibleSet.has(id) && !disabledSet.has(id));
     } else {
+      // Not provided -> use all accessible (minus disabled)
       kbIds = [...accessibleSet].filter(id => !disabledSet.has(id));
     }
 
@@ -399,8 +401,7 @@ export class KnowledgeService {
           continue;
         }
 
-        const chunksWithEmbeddings = await Promise.all(
-          chunks.map(async (chunk, index) => {
+        const chunksWithEmbeddings = await mapWithConcurrency(chunks, 2, async (chunk, index) => {
           try {
             const embedding = await llmService.generateEmbedding(embeddingModel, chunk);
             return {
@@ -409,7 +410,7 @@ export class KnowledgeService {
               embedding,
               metadata: { index, knowledgeBaseId: kb.id }
             };
-          } catch (error) {
+          } catch {
             return {
               id: `${kb.id}_chunk_${index}`,
               content: chunk,
@@ -417,8 +418,7 @@ export class KnowledgeService {
               metadata: { index, knowledgeBaseId: kb.id }
             };
           }
-          })
-        );
+        });
 
         vectorStore[kb.id] = { chunks: chunksWithEmbeddings };
         console.log(`Loaded knowledge base: ${kb.name}`);

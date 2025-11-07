@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { translationService } from '../services/translationService';
 import { knowledgeService } from '../services/knowledgeService';
 import type { ApiResponse, TranslationRequest, TranslationStageResult, ReviewResult, TranslationResponse } from '../types';
+import { logError } from '../utils/logger';
 
 const router = Router();
 
@@ -48,6 +49,7 @@ router.get('/history', (req, res) => {
     };
     res.json(response);
   } catch (error) {
+    logError(`/translations 失败: ${error instanceof Error ? error.message : String(error)}`);
     const response: ApiResponse = {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -70,6 +72,7 @@ router.get('/history/search', (req, res) => {
     const response: ApiResponse = { success: true, data: results };
     res.json(response);
   } catch (error) {
+    logError(`/translations/progress/start 失败: ${error instanceof Error ? error.message : String(error)}`);
     const response: ApiResponse = {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -98,6 +101,7 @@ router.get('/:id', (req, res) => {
     };
     res.json(response);
   } catch (error) {
+    logError(`/translations/progress/review 失败: ${error instanceof Error ? error.message : String(error)}`);
     const response: ApiResponse = {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -153,6 +157,7 @@ router.post('/progress/start', async (req, res) => {
     const response: ApiResponse = { success: true, data: partial };
     res.json(response);
   } catch (error) {
+    logError(`/translations/progress/synthesis 失败: ${error instanceof Error ? error.message : String(error)}`);
     const response: ApiResponse = {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

@@ -96,7 +96,8 @@ export const adminApi = {
   getSettings: () => api.get('/admin/settings'),
   updateSettings: (authEnabled: boolean) => api.post('/admin/settings', { authEnabled }),
   bootstrap: (username: string, password: string) => api.post('/admin/bootstrap', { username, password }),
-  resetModels: (deleteKnowledgeBases = true) => api.post('/admin/reset-models', { deleteKnowledgeBases })
+  resetModels: (deleteKnowledgeBases = true) => api.post('/admin/reset-models', { deleteKnowledgeBases }),
+  cleanupLegacy: () => api.post('/admin/cleanup-legacy', {})
 };
 
 // Health check

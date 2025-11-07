@@ -42,6 +42,7 @@
       </label>
     </div>
     <button @click="resetModels" class="px-4 py-2 border-2 border-red-600 text-red-600 rounded-md hover:bg-red-600 hover:text-white transition-colors">清空模型配置</button>
+    <button @click="cleanupLegacy" class="ml-3 px-4 py-2 border-2 border-red-600 text-red-600 rounded-md hover:bg-red-600 hover:text-white transition-colors">清理旧共享与无归属数据</button>
   </div>
 </template>
 
@@ -87,6 +88,24 @@ async function resetModels() {
     }
   } catch (e: any) {
     message.value = e?.message || '清空失败';
+    messageType.value = 'err';
+  }
+}
+async function cleanupLegacy() {
+  const ok = confirm('将删除历史上共享/无归属的模型与知识库，确定执行？');
+  if (!ok) return;
+  try {
+    const res = await adminApi.cleanupLegacy();
+    if ((res as any)?.success) {
+      const d = (res as any).data || {};
+      message.value = `已清理：KB ${d.kbDeleted ?? 0}，模型 ${d.modelDeleted ?? 0}`;
+      messageType.value = 'ok';
+    } else {
+      message.value = (res as any)?.error || '清理失败';
+      messageType.value = 'err';
+    }
+  } catch (e: any) {
+    message.value = e?.message || '清理失败';
     messageType.value = 'err';
   }
 }

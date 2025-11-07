@@ -107,4 +107,35 @@ router.post('/knowledge/:id/share', requireAdmin, (req, res) => {
   }
 });
 
+// Cleanup legacy shared or ownerless resources
+router.post('/cleanup-legacy', requireAdmin, async (req, res) => {
+  try {
+    const adminId = (req as any).user?.id as string;
+    const kbRows = db.prepare("SELECT id FROM knowledge_bases WHERE owner_user_id IS NULL OR is_public = 1").all() as { id: string }[];
+    let kbDeleted = 0;
+    for (const row of kbRows) {
+      try {
+        if (knowledgeService.deleteKnowledgeBase(row.id, adminId, true)) kbDeleted++;
+      } catch {
+        // ignore
+      }
+    }
+
+    const modelRows = db.prepare("SELECT id FROM model_configs WHERE owner_user_id IS NULL OR is_public = 1").all() as { id: string }[];
+    let modelDeleted = 0;
+    for (const row of modelRows) {
+      try {
+        const r = db.prepare('DELETE FROM model_configs WHERE id = ?').run(row.id);
+        if (r.changes > 0) modelDeleted++;
+      } catch {
+        // ignore (possible RESTRICT if any leftover KB depends on it)
+      }
+    }
+
+    res.json({ success: true, data: { kbDeleted, modelDeleted } });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e?.message || 'Cleanup failed' });
+  }
+});
+
 

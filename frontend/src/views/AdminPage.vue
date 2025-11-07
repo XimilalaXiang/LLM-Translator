@@ -80,6 +80,51 @@
       </label>
     </div>
   </div>
+
+  <div class="p-4 border border-gray-300 dark:border-gray-700 rounded-md">
+    <h3 class="text-lg font-semibold mb-3">用户列表</h3>
+    <button @click="loadUsers" class="mb-3 px-3 py-1 border-2 border-gray-300 rounded hover:border-black">刷新</button>
+    <div v-if="users.length === 0" class="text-sm text-gray-500">暂无用户</div>
+    <table v-else class="w-full text-sm">
+      <thead>
+        <tr class="text-left border-b border-gray-200 dark:border-gray-700">
+          <th class="py-2">用户名</th>
+          <th class="py-2">角色</th>
+          <th class="py-2">创建时间</th>
+          <th class="py-2">操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="u in users" :key="u.id" class="border-b border-gray-100 dark:border-gray-800">
+          <td class="py-2">{{ u.username }}</td>
+          <td class="py-2">{{ u.role }}</td>
+          <td class="py-2">{{ formatDate(u.created_at) }}</td>
+          <td class="py-2">
+            <button @click="viewUserHistory(u.id)" class="px-2 py-1 border-2 border-gray-300 rounded hover:border-black">查看历史</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div v-if="selectedUserHistory.length > 0" class="mt-4">
+      <h4 class="font-medium mb-2">用户历史（最近 {{ selectedUserHistory.length }} 条）</h4>
+      <ul class="space-y-2 text-sm">
+        <li v-for="h in selectedUserHistory" :key="h.id" class="p-2 border border-gray-200 dark:border-gray-700 rounded">
+          <div class="text-gray-500 mb-1">{{ formatDate(h.createdAt) }}</div>
+          <div class="line-clamp-2">{{ h.sourceText }}</div>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="p-4 border border-gray-300 dark:border-gray-700 rounded-md">
+    <h3 class="text-lg font-semibold mb-3">系统日志</h3>
+    <div class="flex items-center gap-3 mb-2">
+      <button @click="loadLogs" class="px-3 py-1 border-2 border-gray-300 rounded hover:border-black">刷新</button>
+      <span class="text-xs text-gray-500">显示最近 {{ logLines }} 行</span>
+    </div>
+    <pre class="bg-black text-green-400 p-3 rounded max-h-80 overflow-auto text-xs whitespace-pre-wrap">{{ systemLogs }}</pre>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -96,6 +141,10 @@ const messageType = ref<'ok' | 'err'>('ok');
 const deleteKB = ref(true);
 const myModels = ref<ModelConfig[]>([]);
 const myKbs = ref<KnowledgeBase[]>([]);
+const users = ref<any[]>([]);
+const selectedUserHistory = ref<any[]>([]);
+const systemLogs = ref('');
+const logLines = ref(500);
 
 onMounted(async () => {
   await store.fetchStatus();
@@ -154,6 +203,28 @@ async function toggleKbShare(k: KnowledgeBase) {
   if ((res as any)?.success) {
     k.isPublic = next;
   }
+}
+
+async function loadUsers() {
+  try {
+    const res = await adminApi.getUsers();
+    users.value = (res as any)?.data || [];
+  } catch {}
+}
+
+function formatDate(s: string) {
+  const d = new Date(s);
+  return d.toLocaleString('zh-CN');
+}
+
+async function viewUserHistory(userId: string) {
+  const res = await adminApi.getUserHistory(userId, 20);
+  selectedUserHistory.value = (res as any)?.data || [];
+}
+
+async function loadLogs() {
+  const res = await adminApi.getSystemLogs(logLines.value);
+  systemLogs.value = (res as any)?.data || '';
 }
 async function cleanupLegacy() {
   const ok = confirm('将删除历史上共享/无归属的模型与知识库，确定执行？');

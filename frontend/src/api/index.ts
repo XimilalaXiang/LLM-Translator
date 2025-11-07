@@ -99,7 +99,10 @@ export const adminApi = {
   resetModels: (deleteKnowledgeBases = true) => api.post('/admin/reset-models', { deleteKnowledgeBases }),
   cleanupLegacy: () => api.post('/admin/cleanup-legacy', {}),
   shareModel: (id: string, isPublic: boolean) => api.post(`/admin/models/${id}/share`, { isPublic }),
-  shareKnowledge: (id: string, isPublic: boolean) => api.post(`/admin/knowledge/${id}/share`, { isPublic })
+  shareKnowledge: (id: string, isPublic: boolean) => api.post(`/admin/knowledge/${id}/share`, { isPublic }),
+  getUsers: () => api.get('/admin/users'),
+  getUserHistory: (userId: string, limit?: number) => api.get('/admin/users/' + userId + '/history', { params: { limit } }),
+  getSystemLogs: (lines = 500) => api.get('/admin/system-logs', { params: { lines } })
 };
 
 // Health check

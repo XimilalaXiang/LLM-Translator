@@ -13,6 +13,7 @@ import authRoutes from './routes/authRoutes';
 import adminRoutes from './routes/adminRoutes';
 import { attachUser } from './utils/authMiddleware';
 import { authService } from './services/authService';
+import { logInfo, logError } from './utils/logger';
 
 // Load environment variables
 dotenv.config();
@@ -39,6 +40,7 @@ initDatabase();
 // Load existing knowledge bases
 knowledgeService.loadExistingKnowledgeBases().catch(err => {
   console.error('Failed to load knowledge bases:', err);
+  logError(`Failed to load knowledge bases: ${err instanceof Error ? err.message : String(err)}`);
 });
 
 // Routes
@@ -75,6 +77,7 @@ app.get('/api/health', (req, res) => {
 app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
   const message = err instanceof Error ? err.message : 'Internal server error';
   console.error('Error:', err);
+  logError(`Unhandled error: ${message}`);
   res.status(500).json({ success: false, error: message });
 });
 
@@ -98,6 +101,7 @@ app.listen(PORT, () => {
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
   `);
+  logInfo(`Server started on ${PORT}`);
 });
 
 // Graceful shutdown

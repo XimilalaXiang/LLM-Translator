@@ -4,6 +4,8 @@ import { db } from '../database/schema';
 import { requireAdmin } from '../utils/authMiddleware';
 import { modelService } from '../services/modelService';
 import { knowledgeService } from '../services/knowledgeService';
+import fs from 'fs';
+import { getLogFilePath } from '../utils/logger';
 
 const router = Router();
 
@@ -135,6 +137,44 @@ router.post('/cleanup-legacy', requireAdmin, async (req, res) => {
     res.json({ success: true, data: { kbDeleted, modelDeleted } });
   } catch (e: any) {
     res.status(500).json({ success: false, error: e?.message || 'Cleanup failed' });
+  }
+});
+
+// Admin: list users
+router.get('/users', requireAdmin, (_req, res) => {
+  try {
+    const rows = db.prepare('SELECT id, username, role, created_at FROM users ORDER BY created_at DESC').all();
+    res.json({ success: true, data: rows });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e?.message || 'Failed' });
+  }
+});
+
+// Admin: user translation history
+router.get('/users/:id/history', requireAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    const limit = req.query.limit ? parseInt(String(req.query.limit)) : 50;
+    const rows = db.prepare('SELECT result_json FROM translation_history WHERE user_id = ? ORDER BY created_at DESC LIMIT ?').all(id, limit) as any[];
+    const data = rows.map(r => JSON.parse(r.result_json));
+    res.json({ success: true, data });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e?.message || 'Failed' });
+  }
+});
+
+// Admin: system logs tail
+router.get('/system-logs', requireAdmin, (req, res) => {
+  try {
+    const lines = req.query.lines ? parseInt(String(req.query.lines)) : 500;
+    const file = getLogFilePath();
+    if (!fs.existsSync(file)) return res.json({ success: true, data: '' });
+    const content = fs.readFileSync(file, 'utf-8');
+    const arr = content.split('\n');
+    const tail = arr.slice(Math.max(0, arr.length - lines)).join('\n');
+    res.json({ success: true, data: tail });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e?.message || 'Failed' });
   }
 });
 

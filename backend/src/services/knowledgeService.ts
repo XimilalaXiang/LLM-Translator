@@ -216,6 +216,28 @@ export class KnowledgeService {
   }
 
   /**
+   * Get background build status for a knowledge base
+   */
+  getBuildStatus(id: string): { ready: boolean; total: number; processed: number } {
+    // If currently processing, report live progress
+    const inProgress = this.processingProgress[id];
+    if (inProgress) {
+      return { ready: false, total: inProgress.total, processed: inProgress.processed };
+    }
+    // If already in memory vector store, compute completeness
+    const store = vectorStore[id];
+    if (store && store.chunks && store.chunks.length > 0) {
+      const total = store.chunks.length;
+      const processed = store.chunks.filter(c => Array.isArray(c.embedding) && c.embedding.length > 0).length;
+      return { ready: processed === total && total > 0, total, processed };
+    }
+    // Fallback to DB chunk_count
+    const kb = this.getKnowledgeBaseById(id);
+    const total = kb?.chunkCount || 0;
+    return { ready: false, total, processed: 0 };
+  }
+
+  /**
    * Delete knowledge base
    */
   deleteKnowledgeBase(id: string, currentUserId?: string, isAdmin?: boolean): boolean {

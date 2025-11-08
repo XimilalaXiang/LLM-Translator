@@ -82,6 +82,26 @@ router.get('/:id', (req, res) => {
   }
 });
 
+// Knowledge base build status
+router.get('/:id/status', (req, res) => {
+  try {
+    const { id } = req.params;
+    const kb = knowledgeService.getKnowledgeBaseById(id);
+    if (!kb) {
+      return res.status(404).json({ success: false, error: 'Knowledge base not found' } as ApiResponse);
+    }
+    const status = knowledgeService.getBuildStatus(id);
+    const response: ApiResponse = { success: true, data: status };
+    res.json(response);
+  } catch (error) {
+    const response: ApiResponse = {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+    res.status(500).json(response);
+  }
+});
+
 // Create knowledge base
 router.post('/', upload.single('file'), async (req, res) => {
   try {

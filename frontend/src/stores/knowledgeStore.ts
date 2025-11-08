@@ -7,6 +7,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
   const knowledgeBases = ref<KnowledgeBase[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
+  const kbStatus = ref<Record<string, { ready: boolean; total: number; processed: number }>>({});
 
   async function fetchKnowledgeBases() {
     loading.value = true;
@@ -31,6 +32,8 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
       const response = await knowledgeApi.create(data, file);
       if (response.success && response.data) {
         knowledgeBases.value.push(response.data);
+        // 后台构建，启动状态轮询（不阻塞）
+        void pollKnowledgeStatus(response.data.id);
         return response.data;
       }
     } catch (err) {
@@ -69,14 +72,33 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
     return knowledgeBases.value.find(kb => kb.id === id);
   }
 
+  async function pollKnowledgeStatus(id: string, intervalMs = 5000, maxTries = 120) {
+    let tries = 0;
+    while (tries < maxTries) {
+      try {
+        const res = await knowledgeApi.getStatus(id);
+        if (res.success && res.data) {
+          kbStatus.value[id] = res.data;
+          if (res.data.ready) break;
+        }
+      } catch {
+        // 忽略单次查询失败，继续下一次
+      }
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+      tries++;
+    }
+  }
+
   return {
     knowledgeBases,
     loading,
     error,
+    kbStatus,
     fetchKnowledgeBases,
     createKnowledgeBase,
     deleteKnowledgeBase,
     getKnowledgeBaseById,
-    toggleKnowledgeBase
+    toggleKnowledgeBase,
+    pollKnowledgeStatus
   };
 });

@@ -35,7 +35,10 @@ api.interceptors.response.use(
   },
   (error) => {
     console.error('API Error:', error);
-    return Promise.reject(error);
+    // 透传后端返回的可读错误信息
+    const serverMsg = error?.response?.data?.error || error?.response?.data?.message;
+    const message = serverMsg || (error instanceof Error ? error.message : 'Request failed');
+    return Promise.reject(new Error(message));
   }
 );
 
@@ -68,6 +71,7 @@ export const translationApi = {
 export const knowledgeApi = {
   getAll: () => api.get<never, ApiResponse<KnowledgeBase[]>>('/knowledge'),
   getById: (id: string) => api.get<never, ApiResponse<KnowledgeBase>>(`/knowledge/${id}`),
+  getStatus: (id: string) => api.get<never, ApiResponse<{ ready: boolean; total: number; processed: number }>>(`/knowledge/${id}/status`),
   create: (data: CreateKnowledgeBaseDto, file: File) => {
     const formData = new FormData();
     formData.append('file', file);

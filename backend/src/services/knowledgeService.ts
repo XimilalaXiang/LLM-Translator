@@ -135,6 +135,11 @@ export class KnowledgeService {
 
     // Extract text from file
     const text = await this.extractTextFromFile(file);
+    if (!text || text.trim().length === 0) {
+      // 纯图片PDF等无文本内容的文件：删除临时文件并拒绝
+      try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch {}
+      throw new Error('上传失败：文件不包含可提取文本（可能为图片型PDF），不支持上传。');
+    }
 
     // Split into chunks
     const chunks = this.splitIntoChunks(text);
@@ -147,8 +152,7 @@ export class KnowledgeService {
 
     // Generate embeddings for chunks (no concurrency limit)
     console.log(`Generating embeddings for ${chunks.length} chunks...`);
-    const chunksWithEmbeddings = await Promise.all(
-      chunks.map(async (chunk, index) => {
+    const chunksWithEmbeddings = await mapWithConcurrency(chunks, 2, async (chunk, index) => {
       try {
         const embedding = await llmService.generateEmbedding(embeddingModel, chunk);
         return {
@@ -166,8 +170,7 @@ export class KnowledgeService {
           metadata: { index, knowledgeBaseId: id }
         };
       }
-      })
-    );
+    });
 
     // Store in vector store
     vectorStore[id] = { chunks: chunksWithEmbeddings };

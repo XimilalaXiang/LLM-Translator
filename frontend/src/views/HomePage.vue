@@ -205,7 +205,7 @@ const handleTranslate = async () => {
   if (!sourceText.value.trim()) return;
 
   try {
-    await translationStore.translate({
+    await translationStore.translateLive({
       sourceText: sourceText.value,
       useKnowledgeBase: useKnowledgeBase.value,
       knowledgeBaseIds: useKnowledgeBase.value ? selectedKnowledgeBases.value : undefined

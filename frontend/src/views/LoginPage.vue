@@ -12,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -20,6 +20,15 @@ const router = useRouter();
 const store = useAuthStore();
 const username = ref('');
 const password = ref('');
+
+onMounted(async () => {
+  if (store.user) {
+    router.replace('/');
+  } else {
+    await store.fetchStatus();
+    if (store.user) router.replace('/');
+  }
+});
 
 async function doLogin() {
   const ok = await store.login(username.value.trim(), password.value);

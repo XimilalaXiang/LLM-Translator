@@ -132,7 +132,7 @@ export class LLMService {
 
       // 记录详细错误信息
       logError(`LLM API调用失败 [Model:${config.name}] [Endpoint:${config.apiEndpoint}] [Error:${errorMessage}]`);
-      
+
       throw new Error(`LLM API call failed: ${errorMessage}`);
     }
   }
@@ -298,7 +298,7 @@ export class LLMService {
         : axiosError?.message || 'Embedding request failed';
       
       logError(`Embedding生成失败 [Model:${config.name}] [Endpoints尝试:${endpointsToTry.join(', ')}] [Error:${errorMessage}]`);
-      
+
       throw new Error(`Embedding generation failed: ${errorMessage}`);
     } catch (error) {
       const axiosError = error as AxiosError;

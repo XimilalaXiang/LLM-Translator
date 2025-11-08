@@ -13,6 +13,25 @@ import type {
   LLMMessage
 } from '../types';
 
+// Simple concurrency limiter (avoid external deps)
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+  const workers = new Array(Math.max(1, concurrency)).fill(0).map(async () => {
+    while (true) {
+      const i = nextIndex++;
+      if (i >= items.length) break;
+      results[i] = await mapper(items[i], i);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
 export class TranslationService {
   /**
    * Execute the three-stage translation workflow
@@ -61,8 +80,16 @@ export class TranslationService {
         userId
       );
 
-      // Select the best final translation (use the first synthesis result)
-      const finalTranslation = stage3Results[0]?.output || stage1Results[0]?.output || '';
+      // Combine all synthesis results as final translation (fallback to stage1 when empty)
+      const combined = stage3Results
+        .filter(r => (r.output || '').trim().length > 0)
+        .map(r => `【${r.modelName}】\n${r.output}`)
+        .join('\n\n---\n\n');
+      const fallback = stage1Results
+        .filter(r => (r.output || '').trim().length > 0)
+        .map(r => `【${r.modelName}】\n${r.output}`)
+        .join('\n\n---\n\n');
+      const finalTranslation = combined || fallback || '';
 
       const totalDuration = Date.now() - startTime;
 
@@ -121,6 +148,144 @@ export class TranslationService {
     return this.executeStage3(sourceText, stage1Results, stage2Results, knowledgeContext, modelIds, userId);
   }
 
+  // Streaming variants: emit partial results as soon as each model finishes
+  async streamStage1(
+    sourceText: string,
+    knowledgeContext: string[],
+    modelIds: string[] | undefined,
+    userId: string | undefined,
+    onResult: (r: TranslationStageResult) => void
+  ): Promise<TranslationStageResult[]> {
+    let models = modelService.getEnabledModelsByStageForUser('translation', userId);
+    if (modelIds && modelIds.length > 0) models = models.filter(m => modelIds.includes(m.id));
+    if (models.length === 0) throw new Error('No translation models available');
+
+    const results: TranslationStageResult[] = [];
+    const tasks = models.map(async (model) => {
+      const startTime = Date.now();
+      try {
+        const messages: LLMMessage[] = [{ role: 'user', content: `请将以下法律英语文本翻译成中文：\n\n${sourceText}` }];
+        const { output, tokensUsed } = await llmService.callLLM(
+          model,
+          messages,
+          knowledgeContext.length > 0 ? knowledgeContext : undefined
+        );
+        const r: TranslationStageResult = {
+          modelId: model.id, modelName: model.name, output,
+          contextUsed: knowledgeContext.length > 0 ? knowledgeContext : undefined,
+          tokensUsed, duration: Date.now() - startTime
+        };
+        results.push(r);
+        onResult(r);
+        return r;
+      } catch (error) {
+        const r: TranslationStageResult = {
+          modelId: model.id, modelName: model.name, output: '',
+          duration: Date.now() - startTime,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+        results.push(r);
+        onResult(r);
+        return r;
+      }
+    });
+    await Promise.all(tasks);
+    return results;
+  }
+
+  async streamStage2(
+    sourceText: string,
+    stage1Results: TranslationStageResult[],
+    knowledgeContext: string[],
+    modelIds: string[] | undefined,
+    userId: string | undefined,
+    onResult: (r: ReviewResult) => void
+  ): Promise<ReviewResult[]> {
+    let models = modelService.getEnabledModelsByStageForUser('review', userId);
+    if (modelIds && modelIds.length > 0) models = models.filter(m => modelIds.includes(m.id));
+    if (models.length === 0) return [];
+    const pairs: Array<{ translation: TranslationStageResult; model: typeof models[number] }> = [];
+    for (const t of stage1Results) if (!t.error) for (const m of models) pairs.push({ translation: t, model: m });
+    const results: ReviewResult[] = [];
+    const tasks = pairs.map(async ({ translation, model }) => {
+      const startTime = Date.now();
+      try {
+        const reviewPrompt = this.buildReviewPrompt(sourceText, translation.output);
+        const messages: LLMMessage[] = [{ role: 'user', content: reviewPrompt }];
+        const { output, tokensUsed } = await llmService.callLLM(
+          model,
+          messages,
+          knowledgeContext.length > 0 ? knowledgeContext : undefined
+        );
+        const r: ReviewResult = {
+          modelId: model.id, modelName: model.name, translationModelId: translation.modelId,
+          output, contextUsed: knowledgeContext.length > 0 ? knowledgeContext : undefined,
+          tokensUsed, duration: Date.now() - startTime
+        };
+        results.push(r);
+        onResult(r);
+        return r;
+      } catch (error) {
+        const r: ReviewResult = {
+          modelId: model.id, modelName: model.name, translationModelId: translation.modelId,
+          output: '', duration: Date.now() - startTime,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+        results.push(r);
+        onResult(r);
+        return r;
+      }
+    });
+    await Promise.all(tasks);
+    return results;
+  }
+
+  async streamStage3(
+    sourceText: string,
+    stage1Results: TranslationStageResult[],
+    stage2Results: ReviewResult[],
+    knowledgeContext: string[],
+    modelIds: string[] | undefined,
+    userId: string | undefined,
+    onResult: (r: TranslationStageResult) => void
+  ): Promise<TranslationStageResult[]> {
+    let models = modelService.getEnabledModelsByStageForUser('synthesis', userId);
+    if (modelIds && modelIds.length > 0) models = models.filter(m => modelIds.includes(m.id));
+    if (models.length === 0) return [];
+    const synthesisPrompt = this.buildSynthesisPrompt(sourceText, stage1Results, stage2Results);
+    const results: TranslationStageResult[] = [];
+    const tasks = models.map(async (model) => {
+      const startTime = Date.now();
+      try {
+        const messages: LLMMessage[] = [{ role: 'user', content: synthesisPrompt }];
+        const { output, tokensUsed } = await llmService.callLLM(
+          model,
+          messages,
+          knowledgeContext.length > 0 ? knowledgeContext : undefined
+        );
+        const r: TranslationStageResult = {
+          modelId: model.id, modelName: model.name, output,
+          contextUsed: knowledgeContext.length > 0 ? knowledgeContext : undefined,
+          tokensUsed, duration: Date.now() - startTime
+        };
+        results.push(r);
+        onResult(r);
+        return r;
+      } catch (error) {
+        const r: TranslationStageResult = {
+          modelId: model.id, modelName: model.name, output: '',
+          duration: Date.now() - startTime,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
+        results.push(r);
+        onResult(r);
+        return r;
+      }
+    });
+    await Promise.all(tasks);
+    return results;
+  }
+
   finalizeAndSave(
     sourceText: string,
     stage1Results: TranslationStageResult[],
@@ -129,7 +294,15 @@ export class TranslationService {
     userId?: string
   ): TranslationResponse {
     const translationId = uuidv4();
-    const finalTranslation = stage3Results[0]?.output || stage1Results[0]?.output || '';
+    const combined = stage3Results
+      .filter(r => (r.output || '').trim().length > 0)
+      .map(r => `【${r.modelName}】\n${r.output}`)
+      .join('\n\n---\n\n');
+    const fallback = stage1Results
+      .filter(r => (r.output || '').trim().length > 0)
+      .map(r => `【${r.modelName}】\n${r.output}`)
+      .join('\n\n---\n\n');
+    const finalTranslation = combined || fallback || '';
     const totalDuration = [...stage1Results, ...stage2Results, ...stage3Results]
       .reduce((sum, r) => sum + (r.duration || 0), 0);
 
@@ -233,52 +406,48 @@ export class TranslationService {
       return [];
     }
 
-    const reviews: ReviewResult[] = [];
-
-    // Review each translation with each review model
-    for (const translation of stage1Results) {
-      if (translation.error) continue; // Skip failed translations
-
-      for (const model of models) {
-        const startTime = Date.now();
-        try {
-          const reviewPrompt = this.buildReviewPrompt(sourceText, translation.output);
-          const messages: LLMMessage[] = [
-            { role: 'user', content: reviewPrompt }
-          ];
-
-          const { output, tokensUsed } = await llmService.callLLM(
-            model,
-            messages,
-            knowledgeContext.length > 0 ? knowledgeContext : undefined
-          );
-
-          const duration = Date.now() - startTime;
-
-          reviews.push({
-            modelId: model.id,
-            modelName: model.name,
-            translationModelId: translation.modelId,
-            output,
-            contextUsed: knowledgeContext.length > 0 ? knowledgeContext : undefined,
-            tokensUsed,
-            duration
-          });
-        } catch (error) {
-          const duration = Date.now() - startTime;
-          reviews.push({
-            modelId: model.id,
-            modelName: model.name,
-            translationModelId: translation.modelId,
-            output: '',
-            duration,
-            error: error instanceof Error ? error.message : 'Unknown error'
-          });
-        }
-      }
+    // Build all review tasks (translation x model) and run with limited concurrency
+    type Pair = { translation: TranslationStageResult; model: typeof models[number] };
+    const pairs: Pair[] = [];
+    for (const t of stage1Results) {
+      if (t.error) continue;
+      for (const m of models) pairs.push({ translation: t, model: m });
     }
 
-    return reviews;
+    const results = await Promise.all(pairs.map(async ({ translation, model }) => {
+      const startTime = Date.now();
+      try {
+        const reviewPrompt = this.buildReviewPrompt(sourceText, translation.output);
+        const messages: LLMMessage[] = [{ role: 'user', content: reviewPrompt }];
+        const { output, tokensUsed } = await llmService.callLLM(
+          model,
+          messages,
+          knowledgeContext.length > 0 ? knowledgeContext : undefined
+        );
+        const duration = Date.now() - startTime;
+        return {
+          modelId: model.id,
+          modelName: model.name,
+          translationModelId: translation.modelId,
+          output,
+          contextUsed: knowledgeContext.length > 0 ? knowledgeContext : undefined,
+          tokensUsed,
+          duration
+        } as ReviewResult;
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        return {
+          modelId: model.id,
+          modelName: model.name,
+          translationModelId: translation.modelId,
+          output: '',
+          duration,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        } as ReviewResult;
+      }
+    }));
+
+    return results;
   }
 
   /**

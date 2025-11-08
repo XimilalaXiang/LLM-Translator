@@ -49,6 +49,10 @@ router.beforeEach(async (to, _from, next) => {
     await store.fetchStatus();
     statusFetched = true;
   }
+  // 已登录用户不应再看到登录/注册页 -> 重定向到首页
+  if (store.authEnabled && store.user && (to.path === '/login' || to.path === '/register')) {
+    return next('/');
+  }
   // Admin gate when auth enabled
   if (to.path === '/admin' && store.authEnabled && (!store.user || store.user.role !== 'admin')) {
     return next('/login');

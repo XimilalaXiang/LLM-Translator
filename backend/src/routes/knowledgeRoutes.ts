@@ -118,10 +118,12 @@ router.post('/', upload.single('file'), async (req, res) => {
     res.status(201).json(response);
   } catch (error) {
     console.error('Create knowledge base error:', error);
-    const response: ApiResponse = {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    const response: ApiResponse = { success: false, error: message };
+    // 图片型PDF等无文本时返回 400
+    if (message.includes('不包含可提取文本')) {
+      return res.status(400).json(response);
+    }
     res.status(500).json(response);
   }
 });

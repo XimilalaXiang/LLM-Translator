@@ -14,7 +14,7 @@
 
 ```nginx
 location /api/ {
-  proxy_pass http://backend:3456;
+  proxy_pass http://backend:3000;
   
   # 超时配置 - 支持长时间翻译任务
   proxy_connect_timeout 10s;   # 建立连接超时
@@ -172,7 +172,7 @@ docker exec llm-translater-backend-1 grep ERROR /app/data/system.log
 docker exec llm-translater-backend-1 grep REQUEST /app/data/system.log | awk '{if($7 > 10000) print}'
 
 # 4. 查看当前活跃连接
-docker exec llm-translater-backend-1 netstat -an | grep 3456
+docker exec llm-translater-backend-1 netstat -an | grep 3000
 
 # 5. 检查SQLite WAL文件大小(过大需要checkpoint)
 docker exec llm-translater-backend-1 ls -lh /app/data/database.sqlite-wal
@@ -219,4 +219,3 @@ docker exec llm-translater-backend-1 ls -lh /app/data/database.sqlite-wal
 - ✅ **容器资源限制防止过载**
 
 如需支持更高并发(30+用户),建议考虑PostgreSQL + Redis + 负载均衡方案。
-

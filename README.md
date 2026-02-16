@@ -241,12 +241,13 @@ docker compose build
 docker compose up -d
 
 # 访问：
-http://localhost:8080
+http://localhost:8456
 ```
 
 ### 服务说明
-- 前端：Nginx 容器暴露 8080 端口；静态文件路径 `/usr/share/nginx/html`；`/api` 代理到 `backend:3000`。
-- 后端：Node.js 服务监听 3000；默认 CORS 允许 `http://localhost:8080`。
+- 前端：Nginx 容器默认暴露 8456 端口（可通过 `FRONTEND_PORT` 覆盖）；静态文件路径 `/usr/share/nginx/html`；`/api` 代理到 `backend:3000`。
+- 后端：Node.js 服务监听 3000；默认 CORS 允许 `http://localhost:8456`（可通过 `CORS_ORIGIN` 覆盖）。
+- 启动顺序：前端依赖后端健康检查（`/api/health`），可减少启动初期出现 `502 Bad Gateway` 的概率。
 - 数据持久化：
   - SQLite 数据库：`volume backend-data → /app/data/database.sqlite`
   - 上传目录：`volume backend-uploads → /app/uploads`
@@ -268,8 +269,8 @@ docker compose down -v
 
 ### 环境变量（可在 docker-compose.yml 中覆盖）
 - `PORT`（后端端口，默认 3000）
-- `CORS_ORIGIN`（前端地址，默认 `http://localhost:8080`）
+- `FRONTEND_PORT`（前端映射到宿主机端口，默认 `8456`）
+- `CORS_ORIGIN`（前端地址，默认 `http://localhost:8456`）
 - `DATABASE_PATH`（默认 `/app/data/database.sqlite`）
 - `UPLOAD_DIR`（默认 `/app/uploads`）
 - `MAX_FILE_SIZE`（默认 `10485760`）
-
